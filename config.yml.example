@@ -1,0 +1,18 @@
+chase:
+    un: <username>
+    p: <your pw here (or supply via commandline)>
+    notify_new: true
+    notify_removed: true
+    notify_eligible_expiry: true
+    notify_enrolled_expiry: true
+    notify_eligible_expiry_days: 3 
+    notify_enrolled_expiry_days: 7
+    notify_all_eligible: false
+    notify_all_enrolled: false
+
+email:
+    to: <your_real_email@foo.com> 
+    from_address: <your_sender_email_account@mail.com>
+    from_p: <password for your sender account>
+    from_smtp_port: 587
+    from_smtp_server: smtp.mail.com
