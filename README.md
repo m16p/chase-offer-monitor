@@ -26,8 +26,12 @@
 * notify\_eligible\_expiry\_days: Number of days in advance to warn about expiration for eligible offers (max 10)
 * notify\_enrolled\_expiry\_days: Number of days in advance to warn about expiration for enrolled offers (max 10)
 
-* notify\_all\_enrolled : Receive a summary about all enrolled offers on all cards
-* notify\_all\_eligible : Receive a summary about all eligible offers on all cards (probably huge!)
+* notify\_all\_enrolled: Receive a summary about all enrolled offers on all cards
+* notify\_all\_eligible: Receive a summary about all eligible offers on all cards (probably huge!)
+
+* notify_summary_table: Display a summary table of the number of enrolled/eligible offers per card.
+
+* historyname: If you have multiple Chase accounts, specify the file-name of the history file for this account.
 
 
 ## Other notes
