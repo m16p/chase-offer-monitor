@@ -9,6 +9,8 @@ chase:
     notify_enrolled_expiry_days: 7
     notify_all_eligible: false
     notify_all_enrolled: false
+    notify_summary_table: true
+    historyfile: [account-name]-chaseoffers-data.json
 
 email:
     to: <your_real_email@foo.com> 
@@ -16,3 +18,4 @@ email:
     from_p: <password for your sender account>
     from_smtp_port: 587
     from_smtp_server: smtp.mail.com
+    subject: Chase Offer Update ([account name])
