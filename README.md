@@ -36,7 +36,17 @@
 
 ## Other notes
 
-It helps the output readability if you give the Chase cards "nicknames" in your Chase accounts.  This unfortunately doesn't seem to be possible for Chase business card accounts :/  So it'll just say "BUSINESS CARD (...[last 4 digits])" for business cards.
+It helps the output readability if you give the Chase cards "nicknames" in your Chase account(s).  This unfortunately doesn't seem to be possible for Chase business cards :/  So it'll just say "BUSINESS CARD (...[last 4 digits])" for business cards -- you'll just need to remember the last-4-digits of each of those.
 
 ### Multiple Accounts ###
 If you want to handle multiple chase accounts, you can create a separate config file for each account. Add a chase:historyfile key to each config file indicating a filename in the directory that you want to use for each account. You may also customize the email subject with a email:subject key. This should allow you to run the program for multiple accounts without thrashing the data between the two. To run with a config file other than the default config.yml, launch `node chase-offer-monitor.js --config mycustomconfigfile.yml`
+
+### Time Zone funniness ###
+If you run the program across a day-boundary in EST, then there may be some funniness in the output, since the program has to convert "NN days left" to an actual date.
+
+### Chase Extending Offers ###
+Chase Offers seem to frequently be auto-extended another week.  On several occasions, I clearly had an offer saying "10 days left" and then 5 days later that same offer says "12 days left".  I'm guessing Chase/offer-merchants extend them week-by-week sometimes.  Right now when this happens it is treated as a new offer, since the expiration date is part of the key in the history-file lookup so it is treated as a new offer.
+
+## Credit to karwosts
+
+This code is based highly on the Amex Offer Monitor (https://github.com/karwosts/amex-offer-monitor).  I got permission from that author to upload my version for Chase.
