@@ -36,6 +36,7 @@
 
 ## Other notes
 
+### Card Nicknames ###
 It helps the output readability if you give the Chase cards "nicknames" in your Chase account(s).  This unfortunately doesn't seem to be possible for Chase business cards :/  So it'll just say "BUSINESS CARD (...[last 4 digits])" for business cards -- you'll just need to remember the last-4-digits of each of those.
 
 ### Multiple Accounts ###
