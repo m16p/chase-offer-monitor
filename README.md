@@ -18,6 +18,7 @@
 ## Configuration Options
 
 * notify\_new: Email will contain all new offers detected since the last time the script ran
+* notify\_extended: Email will contain all offers which were present before but now have a new expiration date
 * notify\_removed: Email will contain all offers no longer detected that existed the last time the script ran
 
 * notify\_eligible\_expiry: Get a reminder about any eligible offers (not added to card) which are expiring soon. 
@@ -44,9 +45,6 @@ If you want to handle multiple chase accounts, you can create a separate config 
 
 ### Time Zone funniness ###
 If you run the program across a day-boundary in EST, then there may be some funniness in the output, since the program has to convert "NN days left" to an actual date.
-
-### Chase Extending Offers ###
-Chase Offers seem to frequently be auto-extended another week.  On several occasions, I clearly had an offer saying "10 days left" and then 5 days later that same offer says "12 days left".  I'm guessing Chase/offer-merchants extend them week-by-week sometimes.  Right now when this happens it is treated as a new offer, since the expiration date is part of the key in the history-file lookup so it is treated as a new offer.
 
 ## Credit to karwosts
 
