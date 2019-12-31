@@ -528,6 +528,7 @@ const asyncMain = async nightmare => {
   let cardsremoved = [];
   let addedoffers = {};
   let removedoffers = {};
+  let extendedoffers = {};
   let expiringSoonEnrolledOffers = {};
   let expiringSoonEligibleOffers = {};
   
@@ -546,17 +547,27 @@ const asyncMain = async nightmare => {
     if (!(key in olddata)) {
       cardsadded.push(key);
       addedoffers[key] = newdata[key]; 
+      extendedoffers[key] = [];
       removedoffers[key] = [];
     } else {
       let cardoffers_new = newdata[key];
       let cardoffers_old = olddata[key];
       addedoffers[key] = [];
+      extendedoffers[key] = [];
 
       for (let i=0; i< cardoffers_new.length; i++) {
-        let offer = cardoffers_new[i].offer_key;
         let match = false;
         for (let j=0; j< cardoffers_old.length; j++) {
-          if (cardoffers_old[j].offer_key == offer) {
+          if (cardoffers_old[j].offer_key == cardoffers_new[i].offer_key) {
+            match = true;
+            cardoffers_old.splice(j,1);
+            break;
+          }
+          if (cardoffers_old[j].merchant == cardoffers_new[i].merchant &&
+              cardoffers_old[j].deal == cardoffers_new[i].deal) {
+            // This happens when an old offer has its expiration date extended.
+            // Chase seems to frequently do this.
+            extendedoffers[key].push(cardoffers_new[i]);
             match = true;
             cardoffers_old.splice(j,1);
             break;
@@ -578,6 +589,8 @@ const asyncMain = async nightmare => {
   console.dir(cardsremoved);
   console.log("Offers Added: \n");
   console.dir(addedoffers);
+  console.log("Offers Extended: \n");
+  console.dir(extendedoffers);
   console.log("Offers Removed: \n");
   console.dir(removedoffers);
 
@@ -587,6 +600,8 @@ const asyncMain = async nightmare => {
   logger.info(JSON.stringify(cardsremoved, null, 2));
   logger.info("Offers Added: \n");
   logger.info(JSON.stringify(addedoffers, null, 2));
+  logger.info("Offers Extended: \n");
+  logger.info(JSON.stringify(extendedoffers, null, 2));
   logger.info("Offers Removed: \n");
   logger.info(JSON.stringify(removedoffers, null, 2));
 
@@ -598,18 +613,28 @@ const asyncMain = async nightmare => {
     notify_message += cardsadded.join("<br>");
     notify_message += "<br><br>";
     send_message = true;
-  }   
+  }
   if (cardsremoved.length > 0) {
     notify_message += "<h2>Old Cards Not Found:</h2> <br>";
     notify_message += cardsremoved.join("<br>");
     notify_message += "<br><br>";
     send_message = true;
-  }   
+  }
 
-  for (let mode = 0; mode < 2; mode++) {
-    let header = mode == 0 ? "New Offers Found" : "Old Offers Removed";
-    let enable = mode == 0 ? config.chase.notify_new : config.chase.notify_removed;
-    let offers = mode == 0 ? addedoffers : removedoffers;
+  for (let mode = 0; mode < 3; mode++) {
+    let header = "New Offers Found";
+    let enable = config.chase.notify_new;
+    let offers = addedoffers;
+    if (mode == 1) {
+      header = "Extended Offers";
+      enable = config.chase.notify_extended;
+      offers = extendedoffers;
+    }
+    if (mode == 2) {
+      header = "Old Offers Removed";
+      enable = config.chase.notify_removed;
+      offers = removedoffers;
+    }
     let htmlmsg = "<h2>" + header + "</h2>";
     let any_offers_match = false;
     if (enable) {
