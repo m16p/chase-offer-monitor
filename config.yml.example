@@ -2,6 +2,7 @@ chase:
     un: <username>
     p: <your pw here (or supply via commandline)>
     notify_new: true
+    notify_extended: true
     notify_removed: true
     notify_eligible_expiry: true
     notify_enrolled_expiry: true
