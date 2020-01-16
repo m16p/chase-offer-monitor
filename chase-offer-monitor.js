@@ -18,7 +18,15 @@ const sprintf = require('sprintf-js').sprintf;
 // Variable Initialization
 ///////////////////////////////////////////////////////////////////////////////
 
+
 const START = "https://www.chase.com";
+
+// Regular chase.com page loads the login fields+button within an iframe.
+// Nightmare does not support interacting with iframes unfortunately :/
+// This old Chase login page works, since it doesn't use sub-iframes.
+// If Chase ever gets rid of that page, then we may need to try using this:
+//   https://github.com/rosshinkley/nightmare-iframe-manager
+const START_FOR_AUTO_LOGIN = "https://chaseonline.chase.com/Logon.aspx?LOB=RBGLogon";
 
 var config;
 var arg_username;
@@ -105,7 +113,7 @@ var au = null;
 var ap = null;
 
 if (!nocred_mode) {
-  au = arg_username ? arg_username : config.chase.un? config.chase.un : null;
+  au = arg_username ? arg_username : config.chase.un ? config.chase.un : null;
   ap = arg_password ? arg_password : config.chase.p ? config.chase.p : null;
   if (!au) {
     let msg = "Must specify a username in config (config.chase.un) or with --username arg";
@@ -147,8 +155,12 @@ function sortFactory(prop) {
 function lexicographicSort(props) {
   return function(a, b) {
     for (let prop of props) {
-      const a_prop = a[prop].toLowerCase();
-      const b_prop = b[prop].toLowerCase();
+      let a_prop = a[prop];
+      let b_prop = b[prop];
+      if (typeof a_prop == "string" && typeof b_prop == "string") {
+        a_prop = a[prop].toLowerCase();
+        b_prop = b[prop].toLowerCase();
+      }
       if (a_prop == b_prop) {
         continue;
       }
@@ -177,15 +189,13 @@ const chaseLogin = async nightmare => {
           .wait(2000);
       logged_in = true;
     } else {
-      console.log('THIS DOES NOT SEEM TO WORK, UNSURE WHY');
-      logger.info('THIS DOES NOT SEEM TO WORK, UNSURE WHY');
       await nightmare
-          .goto(START)
-          .wait('input[id*="userId-input-field"]')
-          .type('input[id*="userId-input-field"]', au)
-          .wait('input[id*="password-input-field"]')
-          .type('input[id*="password-input-field"]', ap)
-          .click('button[id*="signin-button"]')
+          .goto(START_FOR_AUTO_LOGIN)
+          .wait('input[id*="UserID"]')
+          .type('input[id*="UserID"]', au)
+          .wait('input[id*="Password"]')
+          .type('input[id*="Password"]', ap)
+          .click('input[id*="logon"]')
           .wait(2000)
           .wait('a[id*="cardlyticsSeeAllOffers"]')
           .click('a[id*="cardlyticsSeeAllOffers"]')
