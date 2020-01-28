@@ -37,6 +37,18 @@
 
 ## Other notes
 
+### Unknown min/max ###
+Until you add an offer to your card, Chase does not display the minimum purchase or maximum discount.  So for eligible-but-not-added offers, those values will say "unknown" in the email.
+
+### Why not just add every offer? ###
+For Amex Offers, we know that there are:
+
+1. Per user, there is a maximum number of offers you can be enrolled in at a time.
+
+2. Per offer, there is a maximum number of users who can enroll in it.
+
+Adding every Amex Offer to your account both hurts yourself (because of #1, since it may mean that you won't be able to add an offer you actually want later on) and others (because of #2).  We assume Chase Offers are similar.  So **please don't enroll in offers you know you won't use!**
+
 ### Card Nicknames ###
 It helps the output readability if you give the Chase cards "nicknames" in your Chase account(s).  This unfortunately doesn't seem to be possible for Chase business cards :/  So it'll just say "BUSINESS CARD (...[last 4 digits])" for business cards -- you'll just need to remember the last-4-digits of each of those.
 
