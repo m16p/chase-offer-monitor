@@ -58,6 +58,9 @@ If you want to handle multiple chase accounts, you can create a separate config 
 ### Time Zone funniness ###
 If you run the program across a day-boundary in EST, then there may be some funniness in the output, since the program has to convert "NN days left" to an actual date.
 
+### Closed Cards ###
+One user has reported that the program seems to get stuck when you have closed cards in your Chase account.  I don't have any closed cards, so I'm unable to debug on my own.  If anyone has closed cards and is willing to run a few tests, let me know!
+
 ## Credit to karwosts
 
 This code is based highly on the Amex Offer Monitor (https://github.com/karwosts/amex-offer-monitor).  I got permission from that author to upload my version for Chase.
