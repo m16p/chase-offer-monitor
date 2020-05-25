@@ -1,5 +1,7 @@
 # chase-offer-monitor
 
+NOTE:  Chase changed their page recently, so this code currently doesn't work.  Should be easy to fix, it'll just take time for me to do so.
+
 ## Setup
 
 1. Unpack the code to a folder .../chase-offer-monitor
