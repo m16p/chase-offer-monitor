@@ -183,7 +183,7 @@ const chaseLogin = async nightmare => {
     if (nocred_mode) {
       await nightmare
           .goto(START)
-          .wait(10000)
+          .wait(20000)
           .wait('a[id*="cardlyticsSeeAllOffers"]')
           .click('a[id*="cardlyticsSeeAllOffers"]')
           .wait(2000);
@@ -280,10 +280,17 @@ const getOffers = async nightmare => {
       .evaluate(() => {
           return Array.from(document.querySelectorAll('section[class^="jpui sixersoffers"]'))
             .map(el => {
-                const merchant = el.getAttribute('aria-label');
-                const deal = el.children[0].children[1].children[1].children[0].innerText;
-                const days_left_string = el.children[0].children[1].children[1].children[1].innerText;
-                const status = (el.getAttribute('class').includes('added') ? "enrolled" : "eligible");
+                let merchant = "unknown";
+                if (el.hasAttribute('aria-label')) {
+                  merchant = el.getAttribute('aria-label');
+                }
+                if (el.hasAttribute('aria-labelledby')) {
+                  merchant = el.getAttribute('aria-labelledby');
+                }
+                let content = el.querySelector('div[class*="sixersoffers__content-container"]');
+                const deal = content.children[0].innerText;
+                const days_left_string = content.children[1].children[0].innerText;
+                const status = el.querySelector('a').getAttribute('aria-label').includes('Added') ? "enrolled" : "eligible";
                 return {
                     merchant: merchant,
                     deal: deal,
@@ -326,7 +333,7 @@ const getOffers = async nightmare => {
       if (offers[i].status != "enrolled") continue;
       console.log('Getting max for ' + offers[i].merchant);
       logger.info('Getting max for ' + offers[i].merchant);
-      const added_button_selector = 'a[class="sixersoffers__cta"][aria-label="' + offers[i].merchant + ' Added"]';
+      const added_button_selector = 'section[aria-labelledby*="' + offers[i].merchant + '"] a[class*="sixersoffers__cta"][aria-label*="Added"]';
       await expandOfferList(nightmare);
       try {
         await nightmare
