@@ -26,12 +26,11 @@ const START = "https://www.chase.com";
 // This old Chase login page works, since it doesn't use sub-iframes.
 // If Chase ever gets rid of that page, then we may need to try using this:
 //   https://github.com/rosshinkley/nightmare-iframe-manager
-const START_FOR_AUTO_LOGIN = "https://chaseonline.chase.com/Logon.aspx?LOB=RBGLogon";
+const START_FOR_AUTO_LOGIN = "https://secure05a.chase.com/web/auth/#/logon/logon/chaseOnline?lang=en";
 
 var config;
 var arg_username;
 var arg_password;
-var cardcount = 1; //this will be updated later
 var nocred_mode = false;
 var loglevel = 'info';
 var configfile = path.resolve(__dirname,'config.yml');
@@ -173,7 +172,17 @@ function lexicographicSort(props) {
   };
 };
 
-const chaseLogin = async nightmare => {
+async function tryFunctionNTimes(nightmare, fcn, n) {
+  let ready = false;
+  for (let i = 0; i < n && !ready; i++) {
+    ready = await fcn();
+    if (ready) break;
+    await nightmare.wait(2000);
+  }
+  return ready;
+}
+
+async function chaseLogin(nightmare) {
   console.log('Logging into chase.com');
   logger.info('Logging into chase.com');
 
@@ -191,12 +200,12 @@ const chaseLogin = async nightmare => {
     } else {
       await nightmare
           .goto(START_FOR_AUTO_LOGIN)
-          .wait('input[id*="UserID"]')
-          .type('input[id*="UserID"]', au)
-          .wait('input[id*="Password"]')
-          .type('input[id*="Password"]', ap)
-          .click('input[id*="logon"]')
-          .wait(2000)
+          .wait('input[name="userId"]')
+          .type('input[name="userId"]', au)
+          .wait('input[name="password"]')
+          .type('input[name="password"]', ap)
+          .click('button[id*="signin-button"]')
+          .wait(20000)
           .wait('a[id*="cardlyticsSeeAllOffers"]')
           .click('a[id*="cardlyticsSeeAllOffers"]')
           .wait(2000);
@@ -211,43 +220,139 @@ const chaseLogin = async nightmare => {
     console.log("Logged in and ready");
     logger.info("Logged in and ready");
   } else {
-    console.log("Login Failed");
-    logger.info("Login Failed");
+    console.error("Login Failed");
+    logger.error("Login Failed");
     process.exit(1);
   }
-}  
+}
 
-const chooseCard = async (nightmare, cardId) => {
+// NOTE:  If Chase changes their website to have different names/ids/classes,
+// add the new selectors as an additional element in these arrays to start.
+// This should help keep this script compatible for folks who have the new
+// Chase site and folks who don't (Chase seems to roll changes out slowly to
+// different sets of users).
+const ACCOUNT_SELECTOR_PARENT_SELECTORS = [
+  'mds-select[id*="accountSelector"]'
+];
+const ACCOUNT_SELECTOR_BUTTON_SELECTORS = [
+  'button[name*="accountSelector"]'
+];
+const ACCOUNT_DROPDOWN_OPEN_SELECTORS = [
+  'div[class*="mds-select__menu--visible"]'
+];
+// Chase personal accounts seem to use "mds-select-option--cpo", whereas
+// Chase business accounts use "mds-select-option--bcb".
+function getCardSelectors(cardName) {
+  let label_selector = '';
+  if (cardName) {
+    label_selector = '[label="' + cardName + '"]';
+  }
+  return ['mds-select-option[class*="mds-select-option--"]' + label_selector];
+}
 
-  console.log('Choosing a card (id = ' + cardId + ') ...');
-  logger.info('Choosing a card (id = ' + cardId + ') ...');
+// ACCOUNT_SELECTOR_PARENT_SELECTORS contains a "shadow-root" child, which
+// creates a separate instance of the DOM and requires annoying extra code
+// to get into it.
+function executeWithinAccountSelectorShadowRoot(
+    fcn, internal_selectors) {
+  return async function () {
+    for (let parent_selector of ACCOUNT_SELECTOR_PARENT_SELECTORS) {
+      if (await nightmare.exists(parent_selector)) {
+        for (let internal_selector of internal_selectors) {
+          if (await fcn(parent_selector, internal_selector)) return true;
+        }
+      }
+    }
+    return false;
+  };
+}
 
-  let ready = false;
-  while(!ready) {
-    ready = await nightmare
-        .wait('input[id*="header-accountSelector"]')
-        .click('input[id*="header-accountSelector"]')
-        .wait(randomNumberBetween(2500, 3100))
-        .exists('div[class^="list-container open"]');
-    console.log("Ready = " + ready);
+async function getCardList(nightmare) {
+  console.log('Getting list of card names...');
+  logger.info('Getting list of card names...');
+
+  const blank_card_selectors = getCardSelectors("");
+  let card_names = [];
+  let shadowRootFcn = async function(parent_selector, card_selector) {
+    card_names = await nightmare.evaluate((parent_sel, cards_sel) => {
+        const parent = document.querySelector(parent_sel);
+        let elements =
+            Array.from(parent.shadowRoot.querySelectorAll(cards_sel));
+        return elements.map((el) => el.getAttribute('label'));
+      }, parent_selector, card_selector);
+    return card_names.length > 0;
+  };
+  let getCardListHelper = executeWithinAccountSelectorShadowRoot(
+      shadowRootFcn, blank_card_selectors);
+  let ready = await tryFunctionNTimes(nightmare, getCardListHelper, 10);
+  if (!ready) {
+    console.error('Failed to get card list.  Likely Chase changed the HTML and this program will need to be updated accordingly.');
+    logger.error('Failed to get card list.  Likely Chase changed the HTML and this program will need to be updated accordingly.');
+    process.exit(1);
   }
 
-  let result = await nightmare.evaluate((id)=>{
-      let elements = Array.from(document.querySelectorAll('li[role="presentation"]'));
-      if (elements.length == 0) {
-        throw "found no cards in the card switcher!"
-      }
-      console.log("Found " + elements.length + " cards and choosing number " + id + "\n");
-      elements[id].childNodes[0].click();
-      return [elements.length, elements[id].childNodes[0].childNodes[0].innerText];
-  }, cardId);
-  console.dir(result);
-  logger.debug(JSON.stringify(result, null, 2));
-  cardcount = result[0];
-  await nightmare.wait(randomNumberBetween(2500, 3100));
-  console.log("Done with chooseCard " + cardId);
-  logger.info("Done with chooseCard " + cardId);
-  return result[1];
+  console.dir(card_names);
+  logger.debug(JSON.stringify(card_names, null, 2));
+  console.log('Done getting list of card names...');
+  logger.info('Done getting list of card names...');
+
+  return card_names;
+}
+
+async function openAccountSelectorDropdown(nightmare) {
+  console.log('Opening account selector dropdown...');
+  logger.info('Opening account selector dropdown...');
+
+  let shadowRootFcn = async function(parent_selector, button_selector) {
+    return await nightmare.evaluate((parent_sel, button_sel) => {
+        const parent = document.querySelector(parent_sel);
+        let buttons = parent.shadowRoot.querySelectorAll(button_sel);
+        if (buttons.length == 0) return false;
+        buttons[0].click();
+        return true;
+      }, parent_selector, button_selector);
+  };
+  let openDropdownHelper = executeWithinAccountSelectorShadowRoot(
+      shadowRootFcn, ACCOUNT_SELECTOR_BUTTON_SELECTORS);
+  let ready = await tryFunctionNTimes(nightmare, openDropdownHelper, 10);
+  if (!ready) {
+    console.error('Failed to open account selector dropdown.  Likely Chase changed the HTML and this program will need to be updated accordingly.');
+    logger.error('Failed to open account selector dropdown.  Likely Chase changed the HTML and this program will need to be updated accordingly.');
+    process.exit(1);
+  }
+
+  console.log('Done opening account selector dropdown...');
+  logger.info('Done opening account selector dropdown...');
+}
+
+async function chooseCard(nightmare, cardName) {
+  console.log('Choosing card "' + cardName + '"...');
+  logger.info('Choosing card "' + cardName + '"...');
+
+  await openAccountSelectorDropdown(nightmare);
+
+  const card_selectors = getCardSelectors(cardName);
+  let shadowRootFcn = async function(parent_selector, card_selector) {
+    return await nightmare.evaluate((parent_sel, card_sel) => {
+        const parent = document.querySelector(parent_sel);
+        let cards = parent.shadowRoot.querySelectorAll(card_sel);
+        if (cards.length == 0) return false;
+        cards[0].click();
+        return true;
+      }, parent_selector, card_selector);
+  };
+  let chooseCardHelper =
+      executeWithinAccountSelectorShadowRoot(shadowRootFcn, card_selectors);
+  let ready = await tryFunctionNTimes(nightmare, chooseCardHelper, 10);
+  if (!ready) {
+    const msg = 'Failed to choose card "' + cardName + '".  Likely Chase changed the HTML and this program will need to be updated accordingly.';
+    console.error(msg);
+    logger.error(msg);
+    process.exit(1);
+  }
+
+  console.log('Done with chooseCard "' + cardName + '"...');
+  logger.info('Done with chooseCard "' + cardName + '"...');
 }
 
 const expandOfferList = async nightmare => {
@@ -257,7 +362,7 @@ const expandOfferList = async nightmare => {
   }
 }
 
-const closeFlyout = async nightmare => {
+async function closeFlyout(nightmare) {
   console.log('Closing flyout');
   while (await nightmare.visible('a[id="flyoutClose"]')) {
     await nightmare.click('a[id="flyoutClose"]').wait(3000);
@@ -265,7 +370,7 @@ const closeFlyout = async nightmare => {
   console.log('Done closing flyout');
 }
 
-const getOffers = async nightmare => {
+async function getOffers(nightmare) {
   console.log('Now getting offers');
   logger.info('Now getting offers');
 
@@ -369,13 +474,16 @@ const getOffers = async nightmare => {
     logger.debug(offers);
     return offers;
   } catch(e) {
+    // If there are no offers on the card, this block will be executed.
+    // In that case, it isn't really an "error", and the rest of the script
+    // should work fine.
     console.error(e);
     logger.error(e);
     return [];
   }
 }  
 
-const send_email = async message => {
+async function send_email(message) {
 
   // create reusable transporter object using the default SMTP transport
   let transporter = nodemailer.createTransport({
@@ -402,7 +510,7 @@ const send_email = async message => {
   console.log("Message sent: %s", info.messageId);
 }
 
-const keyByOffer = data => {
+function keyByOffer(data) {
   console.debug("keyByOffer: \n");
   console.debug(data);
   logger.debug("keyByOffer: \n");
@@ -448,7 +556,7 @@ const keyByOffer = data => {
 }
 
 
-const printHtmlTable = offers => {
+function printHtmlTable(offers) {
 
   console.debug("printHtmlTable: \n");
   console.debug(offers);
@@ -473,7 +581,7 @@ const printHtmlTable = offers => {
   return html;
 }
 
-const printSummaryTable = data => {
+function printSummaryTable(data) {
 
   console.debug("printSummaryTable: \n");
   console.debug(data);
@@ -502,7 +610,7 @@ const printSummaryTable = data => {
 
 }
 
-const asyncMain = async nightmare => {
+async function asyncMain(nightmare) {
 
   const fs = require('fs')
   let olddata = {};
@@ -519,12 +627,11 @@ const asyncMain = async nightmare => {
   } else {
     try {
       await chaseLogin(nightmare);
-      for (let i=0; i< cardcount; i++) {
-        if (debug_max_cards >= 0) { cardcount = debug_max_cards; }
-        let card = await chooseCard(nightmare,i);
-        if (card.includes('Canceled')) { continue; }
+      let card_names = await getCardList(nightmare);
+      for (let card_name of card_names) {
+        await chooseCard(nightmare, card_name);
         let offers = await getOffers(nightmare);
-        newdata[card] = offers;
+        newdata[card_name] = offers;
       }
     } catch(e) {
       console.error(e);
