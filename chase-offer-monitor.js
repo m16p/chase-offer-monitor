@@ -93,7 +93,7 @@ config = yaml.safeLoad(fs.readFileSync(configfile, 'utf8'))
 // Options final resolve
 ///////////////////////////////////////////////////////////////////////////////
 
-const logger = new (winston.Logger)({
+const logger = winston.createLogger({
   transports: [
     new (winston.transports.File)({
       timestamp: true,
@@ -101,7 +101,8 @@ const logger = new (winston.Logger)({
       level: loglevel,
       filename: logfile
     })
-  ]
+  ],
+  exitOnError: false,
 });
 
 if (config.chase.historyfile) {
