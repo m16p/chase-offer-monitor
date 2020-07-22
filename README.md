@@ -5,9 +5,10 @@
 1. Unpack the code to a folder .../chase-offer-monitor
 
 2. Install the Node.js application by running `npm install` from the directory (Install node.js on your system first if you don't have it.)
+
 3. Rename config.yml.example to config.yml
 
-4. chase credentials - either update your username & password in the config file, or if you don't want to leave them in plaintext on your harddrive, supply them some other way via `--username <username> --password <password>` on each run of the script
+4. chase credentials - If you want the script to run automatically without any manual intervention, then update your username & password in the config file.  If you don't want to leave them in plaintext on your hard-drive, then there are two alternatives:  run the script with `--nocred` (which means you'll enter the credentials into the browser window manually), or you can set the `--username <username> --password <password>` command-line-arguments on each run of the script
 
 5. Email support - If you want to receive email updates from chase-offer-monitor, you need an email account to send the mail from. I recommend a free/throwaway mail.com account, but you can use others. Update config.yml with your inbox address, and your sender's email, password, smtp\_port, and smtp\_server. (smtp settings configured for mail.com)
 
@@ -36,6 +37,11 @@
 
 
 ## Other notes
+
+### Help, Automatic Login stopped working! ###
+The automatic login feature (either through setting the username+password in the config file, or using the `--username <username> --password <password>` command-line-arguments) is somewhat brittle.  It relies on using a Chase login page which does *not* put the username/password textfields in a sub-iframe.  Most Chase login pages do put these in sub-iframes, unfortunately.  As of this writing, the URL set by `START_FOR_AUTO_LOGIN` in the .js file does not have sub-iframes, so that works currently.  But Chase could change that at any point (like they did for the previous `START_FOR_AUTO_LOGIN` page I was using).
+
+If the script suddenly just hangs at login seemingly doing nothing, then try running the script with `--nocred` (manually entering your username+password in the browser) and see if it works.  If that works, then that means that auto-login has stopped working likely because Chase has changed the `START_FOR_AUTO_LOGIN` to have sub-iframes again.  PM me and I can try to fix it, though in the meantime hopefully using `--nocred` works alright.
 
 ### Unknown min/max ###
 Until you add an offer to your card, Chase does not display the minimum purchase or maximum discount.  So for eligible-but-not-added offers, those values will say "unknown" in the email.
