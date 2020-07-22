@@ -12,9 +12,7 @@
 
 5. Email support - If you want to receive email updates from chase-offer-monitor, you need an email account to send the mail from. I recommend a free/throwaway mail.com account, but you can use others. Update config.yml with your inbox address, and your sender's email, password, smtp\_port, and smtp\_server. (smtp settings configured for mail.com)
 
-6. Automation - the script is intended to be run once per day or so. You can do this with cron on linux or taskschd.msc on windows, so you just get a daily digest of your chase offer status.
-
-7. To launch the script, open a command window or powershell, and from the script directory run `node chase-offer-monitor.js`
+6. To launch the script, open a command window or powershell, and from the script directory run `node chase-offer-monitor.js`
 
 ## Configuration Options
 
