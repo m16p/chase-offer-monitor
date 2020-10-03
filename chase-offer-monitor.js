@@ -136,7 +136,7 @@ nightmare.on('console', (log, msg) => {
 nightmare.on('logger', (info, msg) => {
   //logger.info(msg)
 });
-nightmare.useragent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36');
+nightmare.useragent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36');
 
 ///////////////////////////////////////////////////////////////////////////////
 // Support Functions
@@ -194,6 +194,7 @@ async function chaseLogin(nightmare) {
       await nightmare
           .goto(START)
           .wait(20000)
+          .wait(20000)
           .wait('a[id*="cardlyticsSeeAllOffers"]')
           .click('a[id*="cardlyticsSeeAllOffers"]')
           .wait(2000);
@@ -227,66 +228,34 @@ async function chaseLogin(nightmare) {
   }
 }
 
-// NOTE:  If Chase changes their website to have different names/ids/classes,
-// add the new selectors as an additional element in these arrays to start.
-// This should help keep this script compatible for folks who have the new
-// Chase site and folks who don't (Chase seems to roll changes out slowly to
-// different sets of users).
-const ACCOUNT_SELECTOR_PARENT_SELECTORS = [
-  'mds-select[id*="accountSelector"]'
-];
-const ACCOUNT_SELECTOR_BUTTON_SELECTORS = [
-  'button[name*="accountSelector"]'
-];
-const ACCOUNT_DROPDOWN_OPEN_SELECTORS = [
-  'div[class*="mds-select__menu--visible"]'
-];
 // Chase personal accounts seem to use "mds-select-option--cpo", whereas
 // Chase business accounts use "mds-select-option--bcb".
-function getCardSelectors(cardName) {
+function getCardSelector(cardName) {
   let label_selector = '';
   if (cardName) {
     label_selector = '[label="' + cardName + '"]';
   }
-  return ['mds-select-option[class*="mds-select-option--"]' + label_selector];
+  return 'mds-select-option[class*="mds-select-option--"]' + label_selector;
 }
 
-// ACCOUNT_SELECTOR_PARENT_SELECTORS contains a "shadow-root" child, which
-// creates a separate instance of the DOM and requires annoying extra code
-// to get into it.
-function executeWithinAccountSelectorShadowRoot(
-    fcn, internal_selectors) {
-  return async function () {
-    for (let parent_selector of ACCOUNT_SELECTOR_PARENT_SELECTORS) {
-      if (await nightmare.exists(parent_selector)) {
-        for (let internal_selector of internal_selectors) {
-          if (await fcn(parent_selector, internal_selector)) return true;
-        }
-      }
-    }
-    return false;
-  };
+function getOfferSelector(merchantName) {
+  let label_selector = '';
+  if (merchantName) {
+    label_selector = '[aria-label^="' + merchantName + '"]';
+  }
+  return 'a[class^="sixersoffers__cta"]' + label_selector;
 }
 
 async function getCardList(nightmare) {
   console.log('Getting list of card names...');
   logger.info('Getting list of card names...');
 
-  const blank_card_selectors = getCardSelectors("");
-  let card_names = [];
-  let shadowRootFcn = async function(parent_selector, card_selector) {
-    card_names = await nightmare.evaluate((parent_sel, cards_sel) => {
-        const parent = document.querySelector(parent_sel);
-        let elements =
-            Array.from(parent.shadowRoot.querySelectorAll(cards_sel));
-        return elements.map((el) => el.getAttribute('label'));
-      }, parent_selector, card_selector);
-    return card_names.length > 0;
-  };
-  let getCardListHelper = executeWithinAccountSelectorShadowRoot(
-      shadowRootFcn, blank_card_selectors);
-  let ready = await tryFunctionNTimes(nightmare, getCardListHelper, 10);
-  if (!ready) {
+  const blank_card_selector = getCardSelector("");
+  let card_names = await nightmare.evaluate((cards_sel) => {
+    return Array.from(document.querySelectorAll(cards_sel)).map(
+        el => el.getAttribute('label'));
+  }, blank_card_selector);
+  if (card_names.length == 0) {
     console.error('Failed to get card list.  Likely Chase changed the HTML and this program will need to be updated accordingly.');
     logger.error('Failed to get card list.  Likely Chase changed the HTML and this program will need to be updated accordingly.');
     process.exit(1);
@@ -300,52 +269,18 @@ async function getCardList(nightmare) {
   return card_names;
 }
 
-async function openAccountSelectorDropdown(nightmare) {
-  console.log('Opening account selector dropdown...');
-  logger.info('Opening account selector dropdown...');
-
-  let shadowRootFcn = async function(parent_selector, button_selector) {
-    return await nightmare.evaluate((parent_sel, button_sel) => {
-        const parent = document.querySelector(parent_sel);
-        let buttons = parent.shadowRoot.querySelectorAll(button_sel);
-        if (buttons.length == 0) return false;
-        buttons[0].click();
-        return true;
-      }, parent_selector, button_selector);
-  };
-  let openDropdownHelper = executeWithinAccountSelectorShadowRoot(
-      shadowRootFcn, ACCOUNT_SELECTOR_BUTTON_SELECTORS);
-  let ready = await tryFunctionNTimes(nightmare, openDropdownHelper, 10);
-  if (!ready) {
-    console.error('Failed to open account selector dropdown.  Likely Chase changed the HTML and this program will need to be updated accordingly.');
-    logger.error('Failed to open account selector dropdown.  Likely Chase changed the HTML and this program will need to be updated accordingly.');
-    process.exit(1);
-  }
-
-  console.log('Done opening account selector dropdown...');
-  logger.info('Done opening account selector dropdown...');
-}
-
 async function chooseCard(nightmare, cardName) {
   console.log('Choosing card "' + cardName + '"...');
   logger.info('Choosing card "' + cardName + '"...');
 
-  await openAccountSelectorDropdown(nightmare);
-
-  const card_selectors = getCardSelectors(cardName);
-  let shadowRootFcn = async function(parent_selector, card_selector) {
-    return await nightmare.evaluate((parent_sel, card_sel) => {
-        const parent = document.querySelector(parent_sel);
-        let cards = parent.shadowRoot.querySelectorAll(card_sel);
-        if (cards.length == 0) return false;
-        cards[0].click();
-        return true;
-      }, parent_selector, card_selector);
-  };
-  let chooseCardHelper =
-      executeWithinAccountSelectorShadowRoot(shadowRootFcn, card_selectors);
-  let ready = await tryFunctionNTimes(nightmare, chooseCardHelper, 10);
-  if (!ready) {
+  const card_selector = getCardSelector(cardName);
+  let success = await nightmare.evaluate((card_sel) => {
+    let cards = document.querySelectorAll(card_sel);
+    if (cards.length == 0) return false;
+    cards[0].click();
+    return true;
+  }, card_selector);
+  if (!success) {
     const msg = 'Failed to choose card "' + cardName + '".  Likely Chase changed the HTML and this program will need to be updated accordingly.';
     console.error(msg);
     logger.error(msg);
@@ -380,23 +315,28 @@ async function getOffers(nightmare) {
   try {
     await expandOfferList(nightmare);
 
+    const blank_offer_selector = getOfferSelector('');
     let offers = await nightmare
       .wait('ul[class*="offerList"]')
       .wait(randomNumberBetween(2500, 3100))
-      .evaluate(() => {
-          return Array.from(document.querySelectorAll('section[class^="jpui sixersoffers"]'))
-            .map(el => {
+      .evaluate((blank_offer_sel) => {
+          return Array.from(document.querySelectorAll(
+              'div[class="sixersoffers__container"]')).map(el => {
+                let a_el = el.querySelector(blank_offer_sel);
                 let merchant = "unknown";
-                if (el.hasAttribute('aria-label')) {
-                  merchant = el.getAttribute('aria-label');
+                if (a_el && a_el.hasAttribute('aria-label')) {
+                  merchant = a_el.getAttribute('aria-label');
                 }
-                if (el.hasAttribute('aria-labelledby')) {
-                  merchant = el.getAttribute('aria-labelledby');
+                let status = "eligible";
+                if (merchant.endsWith(" Add to card")) {
+                  merchant = merchant.substring(0, merchant.length - 12);
                 }
-                let content = el.querySelector('div[class*="sixersoffers__content-container"]');
-                const deal = content.children[0].innerText;
-                const days_left_string = content.children[1].children[0].innerText;
-                const status = el.querySelector('a').getAttribute('aria-label').includes('Added') ? "enrolled" : "eligible";
+                if (merchant.endsWith(" Added to card")) {
+                  merchant = merchant.substring(0, merchant.length - 14);
+                  status = "enrolled";
+                }
+                const deal = el.querySelector('div[class*="sixerscontent-one"]').innerText;
+                const days_left_string = el.querySelector('div[class*="sixerscontent-two"]').innerText;
                 return {
                     merchant: merchant,
                     deal: deal,
@@ -409,17 +349,17 @@ async function getOffers(nightmare) {
                     minimum_purchase: -1.0
                 };
             })
-      });
+      }, blank_offer_selector);
 
     for (let i = 0; i < offers.length; i++) {
-      let myRe = new RegExp('(\\d+) days? left');
-      let regexResult = myRe.exec(offers[i].days_left_string);
-      if (regexResult) {
-        offers[i].days_left = regexResult[1]; 
+      let days_left_re = new RegExp('(\\d+) days? left');
+      let days_left_re_result = days_left_re.exec(offers[i].days_left_string);
+      if (days_left_re_result) {
+        offers[i].days_left = days_left_re_result[1]; 
       } else {
-        myRe = new RegExp('Last day');
-        regexResult = myRe.exec(offers[i].days_left_string);
-        if (regexResult) {
+        days_left_re = new RegExp('Last day');
+        days_left_re_result = days_left_re.exec(offers[i].days_left_string);
+        if (days_left_re_result) {
           offers[i].days_left = 0;
         }
       }
@@ -433,13 +373,19 @@ async function getOffers(nightmare) {
       }
 
       offers[i].offer_key = offers[i].merchant + " | " + offers[i].deal + " | " + offers[i].expiration;
+
+      let deal_re = new RegExp('\\$([\\d\\.]+) back');
+      let deal_re_result = deal_re.exec(offers[i].deal);
+      if (deal_re_result) {
+        offers[i].maximum = parseFloat(deal_re_result[1]);
+      }
     }
 
     for (let i = 0; i < offers.length; i++) {
       if (offers[i].status != "enrolled") continue;
       console.log('Getting max for ' + offers[i].merchant);
       logger.info('Getting max for ' + offers[i].merchant);
-      const added_button_selector = 'section[aria-labelledby*="' + offers[i].merchant + '"] a[class*="sixersoffers__cta"][aria-label*="Added"]';
+      const added_button_selector = getOfferSelector(offers[i].merchant);
       await expandOfferList(nightmare);
       try {
         await nightmare
@@ -451,22 +397,20 @@ async function getOffers(nightmare) {
           const details = await nightmare.evaluate(() => {
               return document.querySelector('div[class~="offerdetails__content"]').innerText;
           });
-          let maxRe = new RegExp('\\$([\\d\\.]+) back maximum');
-          let maxRegexResult = maxRe.exec(details);
-          if (maxRegexResult) {
-            offers[i].maximum = parseFloat(maxRegexResult[1]);
+          let max_re = new RegExp('\\$([\\d\\.]+) back');
+          let max_re_result = max_re.exec(details);
+          if (max_re_result) {
+            offers[i].maximum = parseFloat(max_re_result[1]);
           }
-          let minRe = new RegExp('when you spend \\$([\\d\\.]+) or more');
-          let minRegexResult = minRe.exec(details);
-          if (minRegexResult) {
-            offers[i].minimum_purchase = parseFloat(minRegexResult[1]);
+          let min_re = new RegExp('\\$([\\d\\.]+) or more');
+          let min_re_result = min_re.exec(details);
+          if (min_re_result) {
+            offers[i].minimum_purchase = parseFloat(min_re_result[1]);
           }
         }
       } catch (e) {
         console.log('Failed to get maximum for ' + offers[i].merchant);
         console.error(e);
-        offers[i].maximum = -2.0;
-        offers[i].minimum_purchase = -2.0;
       }
       await closeFlyout(nightmare);
     }
