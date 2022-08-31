@@ -6,7 +6,7 @@
     "async": "3.2.0",
     "js-yaml": "3.14.0",
     "moment": "2.29.0",
-    "moment-timezone": "0.5.31",
+    "moment-timezone": "0.5.35",
     "nightmare": "3.0.2",
     "nodemailer": "^6.4.13",
     "sprintf-js": "1.1.2",
